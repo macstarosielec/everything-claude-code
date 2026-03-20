@@ -4,28 +4,57 @@ const DEFAULT_FAILURE_THRESHOLD = 3;
 const DEFAULT_WINDOW_SIZE = 50;
 
 const FAILURE_OUTCOMES = new Set(['failure', 'failed', 'error']);
+const ISO_TIMESTAMP_PATTERN =
+  /\d{4}-\d{2}-\d{2}[t ]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:z|[+-]\d{2}:\d{2})?/g;
+const UUID_PATTERN = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g;
+const UNIX_PATH_PATTERN = /\/[\w./-]+/g;
+const WINDOWS_PATH_PATTERN = /[a-z]:\\(?:[^\\/:*?"<>|\r\n]+\\)*[^\\/:*?"<>|\r\n]*/g;
 
 /**
  * Normalize a failure reason string for grouping.
  * Strips timestamps, UUIDs, file paths, and numeric suffixes.
  */
 function normalizeFailureReason(reason) {
-  if (!reason || typeof reason !== 'string') {
+  if (typeof reason !== 'string') {
     return 'unknown';
   }
 
-  return reason
+  const normalizedReason = reason
     .trim()
     .toLowerCase()
     // Strip ISO timestamps (note: already lowercased, so t/z not T/Z)
-    .replace(/\d{4}-\d{2}-\d{2}[t ]\d{2}:\d{2}:\d{2}[.\dz]*/g, '<timestamp>')
+    .replace(ISO_TIMESTAMP_PATTERN, '<timestamp>')
     // Strip UUIDs (already lowercased)
-    .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g, '<uuid>')
+    .replace(UUID_PATTERN, '<uuid>')
     // Strip file paths
-    .replace(/\/[\w./-]+/g, '<path>')
+    .replace(WINDOWS_PATH_PATTERN, '<path>')
+    .replace(UNIX_PATH_PATTERN, '<path>')
     // Collapse whitespace
     .replace(/\s+/g, ' ')
     .trim();
+
+  return normalizedReason || 'unknown';
+}
+
+function compareTimestampsDescending(left, right) {
+  const leftTimestamp = Date.parse(left || '');
+  const rightTimestamp = Date.parse(right || '');
+  const leftValid = Number.isFinite(leftTimestamp);
+  const rightValid = Number.isFinite(rightTimestamp);
+
+  if (leftValid && rightValid) {
+    return rightTimestamp - leftTimestamp;
+  }
+
+  if (rightValid) {
+    return 1;
+  }
+
+  if (leftValid) {
+    return -1;
+  }
+
+  return String(right || '').localeCompare(String(left || ''));
 }
 
 /**
@@ -78,8 +107,8 @@ function detectPatterns(skillRuns, options = {}) {
       continue;
     }
 
-    const sortedRuns = [...group.runs].sort(
-      (a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')
+    const sortedRuns = [...group.runs].sort((a, b) =>
+      compareTimestampsDescending(a.createdAt, b.createdAt)
     );
 
     const firstSeen = sortedRuns[sortedRuns.length - 1].createdAt || null;
@@ -106,7 +135,7 @@ function detectPatterns(skillRuns, options = {}) {
   // Sort by count descending, then by lastSeen descending
   return patterns.sort((a, b) => {
     if (b.count !== a.count) return b.count - a.count;
-    return (b.lastSeen || '').localeCompare(a.lastSeen || '');
+    return compareTimestampsDescending(a.lastSeen, b.lastSeen);
   });
 }
 
@@ -149,6 +178,7 @@ function generateReport(patterns, options = {}) {
       sessionIds: p.sessionIds,
       versions: p.versions,
       rawReasons: p.rawReasons.slice(0, 5),
+      runIds: p.runIds,
       suggestedAction: suggestAction(p),
     })),
     summary: `Found ${patterns.length} recurring failure pattern(s) across ${affectedSkills.length} skill(s) (${totalFailures} total failures).`,
@@ -193,8 +223,8 @@ function inspect(store, options = {}) {
   const windowSize = options.windowSize ?? DEFAULT_WINDOW_SIZE;
   const threshold = options.threshold ?? DEFAULT_FAILURE_THRESHOLD;
 
-  const status = store.getStatus({ recentSkillRunLimit: windowSize });
-  const skillRuns = status.skillRuns.recent || [];
+  const status = store.getStatus({ recentSkillRunLimit: windowSize }) || {};
+  const skillRuns = Array.isArray(status.skillRuns?.recent) ? status.skillRuns.recent : [];
 
   const patterns = detectPatterns(skillRuns, { threshold });
   return generateReport(patterns, { generatedAt: status.generatedAt });

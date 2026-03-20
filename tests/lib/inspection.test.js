@@ -9,6 +9,7 @@ const {
   groupFailures,
   detectPatterns,
   generateReport,
+  inspect,
   suggestAction,
   DEFAULT_FAILURE_THRESHOLD,
 } = require('../../scripts/lib/inspection');
@@ -66,7 +67,18 @@ async function runTests() {
   if (await test('normalizeFailureReason handles null and empty values', async () => {
     assert.strictEqual(normalizeFailureReason(null), 'unknown');
     assert.strictEqual(normalizeFailureReason(''), 'unknown');
+    assert.strictEqual(normalizeFailureReason('   '), 'unknown');
     assert.strictEqual(normalizeFailureReason(undefined), 'unknown');
+  })) passed += 1; else failed += 1;
+
+  if (await test('normalizeFailureReason strips timezone offsets and Windows paths', async () => {
+    const normalized = normalizeFailureReason(
+      'Permission denied at 2026-03-20T10:00:00+05:30 in C:\\Users\\Alice\\project\\file.js'
+    );
+    assert.ok(!normalized.includes('+05:30'));
+    assert.ok(!normalized.includes('c:\\users\\alice'));
+    assert.ok(normalized.includes('<timestamp>'));
+    assert.ok(normalized.includes('<path>'));
   })) passed += 1; else failed += 1;
 
   if (await test('groupFailures groups by skillId and normalized reason', async () => {
@@ -129,6 +141,20 @@ async function runTests() {
     assert.strictEqual(patterns[0].runIds.length, 3);
   })) passed += 1; else failed += 1;
 
+  if (await test('detectPatterns orders firstSeen and lastSeen by actual timestamp', async () => {
+    const runs = [
+      makeSkillRun({ id: 'r1', failureReason: 'timeout', createdAt: '2026-03-15T09:00:00+01:00' }),
+      makeSkillRun({ id: 'r2', failureReason: 'timeout', createdAt: '2026-03-15T08:30:00Z' }),
+      makeSkillRun({ id: 'r3', failureReason: 'timeout', createdAt: '2026-03-15T07:00:00-02:00' }),
+    ];
+
+    const patterns = detectPatterns(runs, { threshold: 3 });
+    assert.strictEqual(patterns.length, 1);
+    assert.strictEqual(patterns[0].firstSeen, '2026-03-15T09:00:00+01:00');
+    assert.strictEqual(patterns[0].lastSeen, '2026-03-15T07:00:00-02:00');
+    assert.deepStrictEqual(patterns[0].runIds, ['r3', 'r2', 'r1']);
+  })) passed += 1; else failed += 1;
+
   if (await test('detectPatterns uses default threshold', async () => {
     const runs = Array.from({ length: DEFAULT_FAILURE_THRESHOLD }, (_, i) =>
       makeSkillRun({ id: `r${i}`, failureReason: 'permission denied' })
@@ -156,6 +182,22 @@ async function runTests() {
     assert.strictEqual(patterns[0].skillId, 'skill-a');
     assert.strictEqual(patterns[1].count, 3);
     assert.strictEqual(patterns[1].skillId, 'skill-b');
+  })) passed += 1; else failed += 1;
+
+  if (await test('detectPatterns sorts equal-count patterns by actual lastSeen timestamp', async () => {
+    const runs = [
+      makeSkillRun({ id: 'a1', skillId: 'skill-a', failureReason: 'timeout', createdAt: '2026-03-15T09:00:00+01:00' }),
+      makeSkillRun({ id: 'a2', skillId: 'skill-a', failureReason: 'timeout', createdAt: '2026-03-15T08:00:00Z' }),
+      makeSkillRun({ id: 'a3', skillId: 'skill-a', failureReason: 'timeout', createdAt: '2026-03-15T07:00:00Z' }),
+      makeSkillRun({ id: 'b1', skillId: 'skill-b', failureReason: 'parse error', createdAt: '2026-03-15T07:30:00-02:00' }),
+      makeSkillRun({ id: 'b2', skillId: 'skill-b', failureReason: 'parse error', createdAt: '2026-03-15T08:30:00Z' }),
+      makeSkillRun({ id: 'b3', skillId: 'skill-b', failureReason: 'parse error', createdAt: '2026-03-15T08:00:00+01:00' }),
+    ];
+
+    const patterns = detectPatterns(runs, { threshold: 3 });
+    assert.strictEqual(patterns.length, 2);
+    assert.strictEqual(patterns[0].skillId, 'skill-b');
+    assert.strictEqual(patterns[1].skillId, 'skill-a');
   })) passed += 1; else failed += 1;
 
   if (await test('detectPatterns groups similar failure reasons with different timestamps', async () => {
@@ -208,6 +250,36 @@ async function runTests() {
     assert.strictEqual(report.patterns[0].skillId, 'my-skill');
     assert.ok(report.patterns[0].suggestedAction);
     assert.strictEqual(report.generatedAt, '2026-03-15T09:00:00Z');
+  })) passed += 1; else failed += 1;
+
+  if (await test('generateReport caps rawReasons and includes runIds', async () => {
+    const runs = Array.from({ length: 8 }, (_, i) =>
+      makeSkillRun({
+        id: `r${i}`,
+        skillId: 'cap-skill',
+        failureReason: `Timeout at 2026-03-15T08:${String(i).padStart(2, '0')}:00Z in /tmp/job-${i}`,
+      })
+    );
+
+    const patterns = detectPatterns(runs, { threshold: 3 });
+    assert.strictEqual(patterns.length, 1);
+    assert.strictEqual(patterns[0].rawReasons.length, 8);
+
+    const report = generateReport(patterns, { generatedAt: '2026-03-15T10:00:00Z' });
+    assert.strictEqual(report.patterns[0].rawReasons.length, 5);
+    assert.strictEqual(report.patterns[0].runIds.length, 8);
+  })) passed += 1; else failed += 1;
+
+  if (await test('inspect handles missing skillRuns data defensively', async () => {
+    const report = inspect({
+      getStatus: () => ({
+        generatedAt: '2026-03-15T09:00:00Z',
+      }),
+    });
+
+    assert.strictEqual(report.status, 'clean');
+    assert.strictEqual(report.patternCount, 0);
+    assert.deepStrictEqual(report.patterns, []);
   })) passed += 1; else failed += 1;
 
   if (await test('suggestAction returns timeout-specific advice', async () => {

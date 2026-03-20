@@ -15,6 +15,9 @@ const path = require('path');
 
 const { resolveEccRoot, INLINE_RESOLVE } = require('../../scripts/lib/resolve-ecc-root');
 
+const sessionsCommandPath = path.join(__dirname, '..', '..', 'commands', 'sessions.md');
+const skillHealthCommandPath = path.join(__dirname, '..', '..', 'commands', 'skill-health.md');
+
 function test(name, fn) {
   try {
     fn();
@@ -28,7 +31,7 @@ function test(name, fn) {
 }
 
 function createTempDir() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'ecc-root-test-'));
+  return fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'ecc-root-test-')));
 }
 
 function setupStandardInstall(homeDir) {
@@ -48,6 +51,38 @@ function setupPluginCache(homeDir, orgName, version) {
   fs.mkdirSync(scriptDir, { recursive: true });
   fs.writeFileSync(path.join(scriptDir, 'utils.js'), '// stub');
   return cacheDir;
+}
+
+function setupLocalPluginRepo(rootDir) {
+  const pluginDir = path.join(rootDir, '.claude-plugin');
+  const scriptDir = path.join(rootDir, 'scripts', 'lib');
+  fs.mkdirSync(pluginDir, { recursive: true });
+  fs.mkdirSync(scriptDir, { recursive: true });
+  fs.writeFileSync(path.join(pluginDir, 'plugin.json'), '{"name":"everything-claude-code"}');
+  fs.writeFileSync(path.join(scriptDir, 'utils.js'), '// stub');
+  return rootDir;
+}
+
+function setupNodeModulesPluginRoot(projectDir) {
+  const pluginRoot = path.join(projectDir, 'node_modules');
+  const pluginDir = path.join(pluginRoot, '.claude-plugin');
+  const scriptDir = path.join(pluginRoot, 'scripts', 'lib');
+  fs.mkdirSync(pluginDir, { recursive: true });
+  fs.mkdirSync(scriptDir, { recursive: true });
+  fs.writeFileSync(path.join(pluginDir, 'plugin.json'), '{"name":"everything-claude-code"}');
+  fs.writeFileSync(path.join(scriptDir, 'utils.js'), '// stub');
+  return pluginRoot;
+}
+
+function setupNodeModulesPackagePlugin(projectDir, packageName = 'ecc-universal') {
+  const pluginRoot = path.join(projectDir, 'node_modules', packageName);
+  const pluginDir = path.join(pluginRoot, '.claude-plugin');
+  const scriptDir = path.join(pluginRoot, 'scripts', 'lib');
+  fs.mkdirSync(pluginDir, { recursive: true });
+  fs.mkdirSync(scriptDir, { recursive: true });
+  fs.writeFileSync(path.join(pluginDir, 'plugin.json'), '{"name":"everything-claude-code"}');
+  fs.writeFileSync(path.join(scriptDir, 'utils.js'), '// stub');
+  return pluginRoot;
 }
 
 function runTests() {
@@ -70,23 +105,27 @@ function runTests() {
 
   if (test('skips empty CLAUDE_PLUGIN_ROOT', () => {
     const homeDir = createTempDir();
+    const cwd = createTempDir();
     try {
       setupStandardInstall(homeDir);
-      const result = resolveEccRoot({ envRoot: '', homeDir });
+      const result = resolveEccRoot({ envRoot: '', homeDir, cwd });
       assert.strictEqual(result, path.join(homeDir, '.claude'));
     } finally {
       fs.rmSync(homeDir, { recursive: true, force: true });
+      fs.rmSync(cwd, { recursive: true, force: true });
     }
   })) passed++; else failed++;
 
   if (test('skips whitespace-only CLAUDE_PLUGIN_ROOT', () => {
     const homeDir = createTempDir();
+    const cwd = createTempDir();
     try {
       setupStandardInstall(homeDir);
-      const result = resolveEccRoot({ envRoot: '   ', homeDir });
+      const result = resolveEccRoot({ envRoot: '   ', homeDir, cwd });
       assert.strictEqual(result, path.join(homeDir, '.claude'));
     } finally {
       fs.rmSync(homeDir, { recursive: true, force: true });
+      fs.rmSync(cwd, { recursive: true, force: true });
     }
   })) passed++; else failed++;
 
@@ -94,12 +133,69 @@ function runTests() {
 
   if (test('finds standard install at ~/.claude/', () => {
     const homeDir = createTempDir();
+    const cwd = createTempDir();
     try {
       setupStandardInstall(homeDir);
-      const result = resolveEccRoot({ envRoot: '', homeDir });
+      const result = resolveEccRoot({ envRoot: '', homeDir, cwd });
       assert.strictEqual(result, path.join(homeDir, '.claude'));
     } finally {
       fs.rmSync(homeDir, { recursive: true, force: true });
+      fs.rmSync(cwd, { recursive: true, force: true });
+    }
+  })) passed++; else failed++;
+
+  // ─── Local/Common Plugin Layouts ───
+
+  if (test('discovers plugin root from local repo .claude-plugin marker', () => {
+    const homeDir = createTempDir();
+    const cwd = createTempDir();
+    try {
+      const expected = setupLocalPluginRepo(cwd);
+      const result = resolveEccRoot({ envRoot: '', homeDir, cwd });
+      assert.strictEqual(result, expected);
+    } finally {
+      fs.rmSync(homeDir, { recursive: true, force: true });
+      fs.rmSync(cwd, { recursive: true, force: true });
+    }
+  })) passed++; else failed++;
+
+  if (test('discovers plugin root from node_modules/.claude-plugin layout', () => {
+    const homeDir = createTempDir();
+    const cwd = createTempDir();
+    try {
+      const expected = setupNodeModulesPluginRoot(cwd);
+      const result = resolveEccRoot({ envRoot: '', homeDir, cwd });
+      assert.strictEqual(result, expected);
+    } finally {
+      fs.rmSync(homeDir, { recursive: true, force: true });
+      fs.rmSync(cwd, { recursive: true, force: true });
+    }
+  })) passed++; else failed++;
+
+  if (test('discovers plugin root from node_modules package directory', () => {
+    const homeDir = createTempDir();
+    const cwd = createTempDir();
+    try {
+      const expected = setupNodeModulesPackagePlugin(cwd);
+      const result = resolveEccRoot({ envRoot: '', homeDir, cwd });
+      assert.strictEqual(result, expected);
+    } finally {
+      fs.rmSync(homeDir, { recursive: true, force: true });
+      fs.rmSync(cwd, { recursive: true, force: true });
+    }
+  })) passed++; else failed++;
+
+  if (test('prefers local plugin root over ~/.claude when both exist', () => {
+    const homeDir = createTempDir();
+    const cwd = createTempDir();
+    try {
+      setupStandardInstall(homeDir);
+      const expected = setupLocalPluginRepo(cwd);
+      const result = resolveEccRoot({ envRoot: '', homeDir, cwd });
+      assert.strictEqual(result, expected);
+    } finally {
+      fs.rmSync(homeDir, { recursive: true, force: true });
+      fs.rmSync(cwd, { recursive: true, force: true });
     }
   })) passed++; else failed++;
 
@@ -107,34 +203,39 @@ function runTests() {
 
   if (test('discovers plugin root from cache directory', () => {
     const homeDir = createTempDir();
+    const cwd = createTempDir();
     try {
       const expected = setupPluginCache(homeDir, 'everything-claude-code', '1.8.0');
-      const result = resolveEccRoot({ envRoot: '', homeDir });
+      const result = resolveEccRoot({ envRoot: '', homeDir, cwd });
       assert.strictEqual(result, expected);
     } finally {
       fs.rmSync(homeDir, { recursive: true, force: true });
+      fs.rmSync(cwd, { recursive: true, force: true });
     }
   })) passed++; else failed++;
 
   if (test('prefers standard install over plugin cache', () => {
     const homeDir = createTempDir();
+    const cwd = createTempDir();
     try {
       const claudeDir = setupStandardInstall(homeDir);
       setupPluginCache(homeDir, 'everything-claude-code', '1.8.0');
-      const result = resolveEccRoot({ envRoot: '', homeDir });
+      const result = resolveEccRoot({ envRoot: '', homeDir, cwd });
       assert.strictEqual(result, claudeDir,
         'Standard install should take precedence over plugin cache');
     } finally {
       fs.rmSync(homeDir, { recursive: true, force: true });
+      fs.rmSync(cwd, { recursive: true, force: true });
     }
   })) passed++; else failed++;
 
   if (test('handles multiple versions in plugin cache', () => {
     const homeDir = createTempDir();
+    const cwd = createTempDir();
     try {
       setupPluginCache(homeDir, 'everything-claude-code', '1.7.0');
       const expected = setupPluginCache(homeDir, 'everything-claude-code', '1.8.0');
-      const result = resolveEccRoot({ envRoot: '', homeDir });
+      const result = resolveEccRoot({ envRoot: '', homeDir, cwd });
       // Should find one of them (either is valid)
       assert.ok(
         result === expected ||
@@ -143,6 +244,7 @@ function runTests() {
       );
     } finally {
       fs.rmSync(homeDir, { recursive: true, force: true });
+      fs.rmSync(cwd, { recursive: true, force: true });
     }
   })) passed++; else failed++;
 
@@ -150,23 +252,27 @@ function runTests() {
 
   if (test('falls back to ~/.claude/ when nothing is found', () => {
     const homeDir = createTempDir();
+    const cwd = createTempDir();
     try {
       // Create ~/.claude but don't put scripts there
       fs.mkdirSync(path.join(homeDir, '.claude'), { recursive: true });
-      const result = resolveEccRoot({ envRoot: '', homeDir });
+      const result = resolveEccRoot({ envRoot: '', homeDir, cwd });
       assert.strictEqual(result, path.join(homeDir, '.claude'));
     } finally {
       fs.rmSync(homeDir, { recursive: true, force: true });
+      fs.rmSync(cwd, { recursive: true, force: true });
     }
   })) passed++; else failed++;
 
   if (test('falls back gracefully when ~/.claude/ does not exist', () => {
     const homeDir = createTempDir();
+    const cwd = createTempDir();
     try {
-      const result = resolveEccRoot({ envRoot: '', homeDir });
+      const result = resolveEccRoot({ envRoot: '', homeDir, cwd });
       assert.strictEqual(result, path.join(homeDir, '.claude'));
     } finally {
       fs.rmSync(homeDir, { recursive: true, force: true });
+      fs.rmSync(cwd, { recursive: true, force: true });
     }
   })) passed++; else failed++;
 
@@ -174,6 +280,7 @@ function runTests() {
 
   if (test('supports custom probe path', () => {
     const homeDir = createTempDir();
+    const cwd = createTempDir();
     try {
       const claudeDir = path.join(homeDir, '.claude');
       fs.mkdirSync(path.join(claudeDir, 'custom'), { recursive: true });
@@ -181,11 +288,13 @@ function runTests() {
       const result = resolveEccRoot({
         envRoot: '',
         homeDir,
+        cwd,
         probe: path.join('custom', 'marker.js'),
       });
       assert.strictEqual(result, claudeDir);
     } finally {
       fs.rmSync(homeDir, { recursive: true, force: true });
+      fs.rmSync(cwd, { recursive: true, force: true });
     }
   })) passed++; else failed++;
 
@@ -209,35 +318,71 @@ function runTests() {
 
   if (test('INLINE_RESOLVE discovers plugin cache when env var is unset', () => {
     const homeDir = createTempDir();
+    const cwd = createTempDir();
     try {
       const expected = setupPluginCache(homeDir, 'everything-claude-code', '1.9.0');
       const { execFileSync } = require('child_process');
       const result = execFileSync('node', [
         '-e', `console.log(${INLINE_RESOLVE})`,
       ], {
+        cwd,
         env: { PATH: process.env.PATH, HOME: homeDir, USERPROFILE: homeDir },
         encoding: 'utf8',
       }).trim();
       assert.strictEqual(result, expected);
     } finally {
       fs.rmSync(homeDir, { recursive: true, force: true });
+      fs.rmSync(cwd, { recursive: true, force: true });
+    }
+  })) passed++; else failed++;
+
+  if (test('INLINE_RESOLVE discovers local repo root from .claude-plugin marker', () => {
+    const homeDir = createTempDir();
+    const cwd = createTempDir();
+    try {
+      const expected = setupLocalPluginRepo(cwd);
+      const { execFileSync } = require('child_process');
+      const result = execFileSync('node', [
+        '-e', `console.log(${INLINE_RESOLVE})`,
+      ], {
+        cwd,
+        env: { PATH: process.env.PATH, HOME: homeDir, USERPROFILE: homeDir },
+        encoding: 'utf8',
+      }).trim();
+      assert.strictEqual(result, expected);
+    } finally {
+      fs.rmSync(homeDir, { recursive: true, force: true });
+      fs.rmSync(cwd, { recursive: true, force: true });
     }
   })) passed++; else failed++;
 
   if (test('INLINE_RESOLVE falls back to ~/.claude/ when nothing found', () => {
     const homeDir = createTempDir();
+    const cwd = createTempDir();
     try {
       const { execFileSync } = require('child_process');
       const result = execFileSync('node', [
         '-e', `console.log(${INLINE_RESOLVE})`,
       ], {
+        cwd,
         env: { PATH: process.env.PATH, HOME: homeDir, USERPROFILE: homeDir },
         encoding: 'utf8',
       }).trim();
       assert.strictEqual(result, path.join(homeDir, '.claude'));
     } finally {
       fs.rmSync(homeDir, { recursive: true, force: true });
+      fs.rmSync(cwd, { recursive: true, force: true });
     }
+  })) passed++; else failed++;
+
+  if (test('sessions command embeds the shared inline resolver', () => {
+    const content = fs.readFileSync(sessionsCommandPath, 'utf8');
+    assert.ok(content.includes(INLINE_RESOLVE));
+  })) passed++; else failed++;
+
+  if (test('skill-health command embeds the shared inline resolver', () => {
+    const content = fs.readFileSync(skillHealthCommandPath, 'utf8');
+    assert.ok(content.includes(INLINE_RESOLVE));
   })) passed++; else failed++;
 
   console.log(`\nResults: Passed: ${passed}, Failed: ${failed}`);

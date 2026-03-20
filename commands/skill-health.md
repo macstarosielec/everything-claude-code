@@ -13,21 +13,21 @@ Shows a comprehensive health dashboard for all skills in the portfolio with succ
 Run the skill health CLI in dashboard mode:
 
 ```bash
-ECC_ROOT="${CLAUDE_PLUGIN_ROOT:-$(node -e "var p=require('path'),f=require('fs'),h=require('os').homedir(),d=p.join(h,'.claude'),q=p.join('scripts','lib','utils.js');if(!f.existsSync(p.join(d,q))){try{var b=p.join(d,'plugins','cache','everything-claude-code');for(var o of f.readdirSync(b))for(var v of f.readdirSync(p.join(b,o))){var c=p.join(b,o,v);if(f.existsSync(p.join(c,q))){d=c;break}}}catch(x){}}console.log(d)")}"
+ECC_ROOT="${CLAUDE_PLUGIN_ROOT:-$(node -e "console.log((()=>{var e=process.env.CLAUDE_PLUGIN_ROOT;if(e&&e.trim())return e.trim();var p=require('path'),f=require('fs'),h=require('os').homedir(),q=p.join('scripts','lib','utils.js'),m=p.join('.claude-plugin','plugin.json'),a=t=>{try{return f.existsSync(p.join(t,q))}catch(x){return false}},r=t=>{try{return f.existsSync(p.join(t,m))}catch(x){return false}},w=process.cwd();for(var c=p.resolve(w);;){if(r(c)&&a(c))return c;var n=p.join(c,'node_modules');if(r(n)&&a(n))return n;try{for(var o of f.readdirSync(n,{withFileTypes:true}))if(o.isDirectory()){var y=p.join(n,o.name);if(r(y)&&a(y))return y}}catch(x){}var u=p.dirname(c);if(u===c)break;c=u}var d=p.join(h,'.claude');if(a(d))return d;try{var b=p.join(d,'plugins','cache','everything-claude-code');for(var g of f.readdirSync(b,{withFileTypes:true}))if(g.isDirectory())for(var v of f.readdirSync(p.join(b,g.name),{withFileTypes:true}))if(v.isDirectory()){var z=p.join(b,g.name,v.name);if(a(z))return z}}catch(x){}return d})())")}"
 node "$ECC_ROOT/scripts/skills-health.js" --dashboard
 ```
 
 For a specific panel only:
 
 ```bash
-ECC_ROOT="${CLAUDE_PLUGIN_ROOT:-$(node -e "var p=require('path'),f=require('fs'),h=require('os').homedir(),d=p.join(h,'.claude'),q=p.join('scripts','lib','utils.js');if(!f.existsSync(p.join(d,q))){try{var b=p.join(d,'plugins','cache','everything-claude-code');for(var o of f.readdirSync(b))for(var v of f.readdirSync(p.join(b,o))){var c=p.join(b,o,v);if(f.existsSync(p.join(c,q))){d=c;break}}}catch(x){}}console.log(d)")}"
+ECC_ROOT="${CLAUDE_PLUGIN_ROOT:-$(node -e "console.log((()=>{var e=process.env.CLAUDE_PLUGIN_ROOT;if(e&&e.trim())return e.trim();var p=require('path'),f=require('fs'),h=require('os').homedir(),q=p.join('scripts','lib','utils.js'),m=p.join('.claude-plugin','plugin.json'),a=t=>{try{return f.existsSync(p.join(t,q))}catch(x){return false}},r=t=>{try{return f.existsSync(p.join(t,m))}catch(x){return false}},w=process.cwd();for(var c=p.resolve(w);;){if(r(c)&&a(c))return c;var n=p.join(c,'node_modules');if(r(n)&&a(n))return n;try{for(var o of f.readdirSync(n,{withFileTypes:true}))if(o.isDirectory()){var y=p.join(n,o.name);if(r(y)&&a(y))return y}}catch(x){}var u=p.dirname(c);if(u===c)break;c=u}var d=p.join(h,'.claude');if(a(d))return d;try{var b=p.join(d,'plugins','cache','everything-claude-code');for(var g of f.readdirSync(b,{withFileTypes:true}))if(g.isDirectory())for(var v of f.readdirSync(p.join(b,g.name),{withFileTypes:true}))if(v.isDirectory()){var z=p.join(b,g.name,v.name);if(a(z))return z}}catch(x){}return d})())")}"
 node "$ECC_ROOT/scripts/skills-health.js" --dashboard --panel failures
 ```
 
 For machine-readable output:
 
 ```bash
-ECC_ROOT="${CLAUDE_PLUGIN_ROOT:-$(node -e "var p=require('path'),f=require('fs'),h=require('os').homedir(),d=p.join(h,'.claude'),q=p.join('scripts','lib','utils.js');if(!f.existsSync(p.join(d,q))){try{var b=p.join(d,'plugins','cache','everything-claude-code');for(var o of f.readdirSync(b))for(var v of f.readdirSync(p.join(b,o))){var c=p.join(b,o,v);if(f.existsSync(p.join(c,q))){d=c;break}}}catch(x){}}console.log(d)")}"
+ECC_ROOT="${CLAUDE_PLUGIN_ROOT:-$(node -e "console.log((()=>{var e=process.env.CLAUDE_PLUGIN_ROOT;if(e&&e.trim())return e.trim();var p=require('path'),f=require('fs'),h=require('os').homedir(),q=p.join('scripts','lib','utils.js'),m=p.join('.claude-plugin','plugin.json'),a=t=>{try{return f.existsSync(p.join(t,q))}catch(x){return false}},r=t=>{try{return f.existsSync(p.join(t,m))}catch(x){return false}},w=process.cwd();for(var c=p.resolve(w);;){if(r(c)&&a(c))return c;var n=p.join(c,'node_modules');if(r(n)&&a(n))return n;try{for(var o of f.readdirSync(n,{withFileTypes:true}))if(o.isDirectory()){var y=p.join(n,o.name);if(r(y)&&a(y))return y}}catch(x){}var u=p.dirname(c);if(u===c)break;c=u}var d=p.join(h,'.claude');if(a(d))return d;try{var b=p.join(d,'plugins','cache','everything-claude-code');for(var g of f.readdirSync(b,{withFileTypes:true}))if(g.isDirectory())for(var v of f.readdirSync(p.join(b,g.name),{withFileTypes:true}))if(v.isDirectory()){var z=p.join(b,g.name,v.name);if(a(z))return z}}catch(x){}return d})())")}"
 node "$ECC_ROOT/scripts/skills-health.js" --dashboard --json
 ```
 

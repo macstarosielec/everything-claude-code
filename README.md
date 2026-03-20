@@ -203,7 +203,7 @@ For manual install instructions see the README in the `rules/` folder.
 /plugin list everything-claude-code@everything-claude-code
 ```
 
-✨ **That's it!** You now have access to 27 agents, 114 skills, and 59 commands.
+✨ **That's it!** You now have access to 27 agents, 115 skills, and 59 commands.
 
 ---
 
@@ -990,6 +990,7 @@ Codex macOS app:
 - The root `AGENTS.md` is auto-detected.
 - `.codex/config.toml` and `.codex/agents/*.toml` work best when kept project-local.
 - The reference `.codex/config.toml` intentionally does not pin `model` or `model_provider`, so Codex uses its own current default unless you override it.
+- Bundled command-based MCP servers set `startup_timeout_sec = 30.0` because first-run `npx` installs often exceed Codex's default 10-second startup window.
 - Optional: copy `.codex/config.toml` to `~/.codex/config.toml` for global defaults; keep the multi-agent role files project-local unless you also copy `.codex/agents/`.
 
 ### What's Included
@@ -999,7 +1000,7 @@ Codex macOS app:
 | Config | 1 | `.codex/config.toml` — top-level approvals/sandbox/web_search, MCP servers, notifications, profiles |
 | AGENTS.md | 2 | Root (universal) + `.codex/AGENTS.md` (Codex-specific supplement) |
 | Skills | 16 | `.agents/skills/` — SKILL.md + agents/openai.yaml per skill |
-| MCP Servers | 4 | GitHub, Context7, Memory, Sequential Thinking (command-based) |
+| MCP Servers | 6 | GitHub, Context7, Exa, Memory, Playwright, Sequential Thinking; command-based servers use `startup_timeout_sec = 30.0` for cold starts |
 | Profiles | 2 | `strict` (read-only sandbox) and `yolo` (full auto-approve) |
 | Agent Roles | 3 | `.codex/agents/` — explorer, reviewer, docs-researcher |
 
@@ -1071,7 +1072,7 @@ The configuration is automatically detected from `.opencode/opencode.json`.
 |---------|-------------|----------|--------|
 | Agents | ✅ 27 agents | ✅ 12 agents | **Claude Code leads** |
 | Commands | ✅ 59 commands | ✅ 31 commands | **Claude Code leads** |
-| Skills | ✅ 114 skills | ✅ 37 skills | **Claude Code leads** |
+| Skills | ✅ 115 skills | ✅ 37 skills | **Claude Code leads** |
 | Hooks | ✅ 8 event types | ✅ 11 events | **OpenCode has more!** |
 | Rules | ✅ 29 rules | ✅ 13 instructions | **Claude Code leads** |
 | MCP Servers | ✅ 14 servers | ✅ Full | **Full parity** |

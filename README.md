@@ -990,6 +990,7 @@ Codex macOS app:
 - The root `AGENTS.md` is auto-detected.
 - `.codex/config.toml` and `.codex/agents/*.toml` work best when kept project-local.
 - The reference `.codex/config.toml` intentionally does not pin `model` or `model_provider`, so Codex uses its own current default unless you override it.
+- Bundled command-based MCP servers set `startup_timeout_sec = 30.0` because first-run `npx` installs often exceed Codex's default 10-second startup window.
 - Optional: copy `.codex/config.toml` to `~/.codex/config.toml` for global defaults; keep the multi-agent role files project-local unless you also copy `.codex/agents/`.
 
 ### What's Included
@@ -999,7 +1000,7 @@ Codex macOS app:
 | Config | 1 | `.codex/config.toml` — top-level approvals/sandbox/web_search, MCP servers, notifications, profiles |
 | AGENTS.md | 2 | Root (universal) + `.codex/AGENTS.md` (Codex-specific supplement) |
 | Skills | 16 | `.agents/skills/` — SKILL.md + agents/openai.yaml per skill |
-| MCP Servers | 4 | GitHub, Context7, Memory, Sequential Thinking (command-based) |
+| MCP Servers | 6 | GitHub, Context7, Exa, Memory, Playwright, Sequential Thinking; command-based servers use `startup_timeout_sec = 30.0` for cold starts |
 | Profiles | 2 | `strict` (read-only sandbox) and `yolo` (full auto-approve) |
 | Agent Roles | 3 | `.codex/agents/` — explorer, reviewer, docs-researcher |
 

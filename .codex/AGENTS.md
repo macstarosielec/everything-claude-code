@@ -44,7 +44,7 @@ Available skills:
 
 ## MCP Servers
 
-Treat the project-local `.codex/config.toml` as the default Codex baseline for ECC. The current ECC baseline enables GitHub, Context7, Exa, Memory, Playwright, and Sequential Thinking; add heavier extras in `~/.codex/config.toml` only when a task actually needs them.
+Treat the project-local `.codex/config.toml` as the default Codex baseline for ECC. The current ECC baseline enables GitHub, Context7, Exa, Memory, Playwright, and Sequential Thinking. The command-based servers set `startup_timeout_sec = 30.0` so first-run `npx` installs do not trip Codex's default 10-second MCP startup timeout; comment out servers you rarely use if you want the fastest cold start.
 
 ## Multi-Agent Support
 

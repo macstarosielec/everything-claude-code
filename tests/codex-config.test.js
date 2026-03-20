@@ -25,6 +25,16 @@ const configPath = path.join(repoRoot, '.codex', 'config.toml');
 const config = fs.readFileSync(configPath, 'utf8');
 const codexAgentsDir = path.join(repoRoot, '.codex', 'agents');
 
+function getTomlSection(source, sectionName) {
+  const escapedSectionName = sectionName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const sectionPattern = new RegExp(
+    `^\\[${escapedSectionName}\\]\\n([\\s\\S]*?)(?=^\\[|\\Z)`,
+    'm',
+  );
+  const match = source.match(sectionPattern);
+  return match ? match[1] : '';
+}
+
 let passed = 0;
 let failed = 0;
 
@@ -58,6 +68,29 @@ if (
       assert.ok(
         !/^model\s*=\s*"o4-mini"$/m.test(roleConfig),
         `Expected sample role config to avoid o4-mini: ${roleFile}`,
+      );
+    }
+  })
+)
+  passed++;
+else failed++;
+
+if (
+  test('bundled command-based MCP servers raise startup timeout above the CLI default', () => {
+    const expectedServers = [
+      'mcp_servers.github',
+      'mcp_servers.context7',
+      'mcp_servers.memory',
+      'mcp_servers.playwright',
+      'mcp_servers.sequential-thinking',
+    ];
+
+    for (const serverName of expectedServers) {
+      const section = getTomlSection(config, serverName);
+      assert.ok(section, `Expected config section [${serverName}]`);
+      assert.ok(
+        /startup_timeout_sec\s*=\s*30(?:\.0)?/m.test(section),
+        `Expected [${serverName}] to set startup_timeout_sec = 30.0`,
       );
     }
   })
